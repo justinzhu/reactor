@@ -36,13 +36,13 @@ int EpollDemultiplexer::wait_event(  std::map<Handle, EventHandler *>&  handlers
         {
             Handle handle =  evs[i].data.fd ;
 
-            if ( EPOLLERR & evs[i].events )
+            if ( (POLLERR | POLLNVAL) & evs[i].events )
             {
                 (handlers[ handle ])->handle_error();
             }
             else
             {
-                if ( EPOLLIN & evs[i].events )
+                if ( (POLLIN | POLLPRI | POLLRDHUP) & evs[i].events )
                 {
                     handlers[ handle ]->handle_read();
                 }
