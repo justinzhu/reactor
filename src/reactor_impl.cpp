@@ -17,9 +17,9 @@
 
 ReactorImplementation::ReactorImplementation()
 {
-    #ifdef _USE_EPOLL 
-        demultiplexer = new EpollDemultiplexer();
-    #endif
+	#ifdef _USE_EPOLL
+       demultiplexer = new EpollDemultiplexer();
+	#endif
     #ifdef _USE_SELECT
         demultiplexer = new SelectDemultiplexer();
     #endif
@@ -27,37 +27,19 @@ ReactorImplementation::ReactorImplementation()
 
 ReactorImplementation::~ReactorImplementation()
 {
-
-    for ( iterator it = handlers.begin(); it != handlers.end(); ++it )
-    {
-        delete it->second;
-    }
-
     if ( demultiplexer )
         delete demultiplexer;
 }
 
 int ReactorImplementation::regist( EventHandler* handler, Event evt )
 {
-    int handle = handler->get_handle();
-
-    if ( handlers.end() == handlers.find( handle ) )
-    {
-        handlers.insert( std::make_pair<Handle, EventHandler *>( handle, handler ) );
-    }
-
-    return demultiplexer->regist( handle, evt ); 
+    return demultiplexer->regist( handler, evt ); 
 }
 
 void ReactorImplementation::remove( EventHandler* handler )
 {
     int handle = handler->get_handle();
     demultiplexer->remove( handle );
-
-    iterator it = handlers.find( handle );
-    delete it->second;
-
-    handlers.erase( handle );
 }
 
 void ReactorImplementation::event_loop( int timeout )

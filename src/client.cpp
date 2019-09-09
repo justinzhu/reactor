@@ -21,12 +21,14 @@ int main( int argc, char **argv )
     struct sockaddr_in seraddr;
     seraddr.sin_family = AF_INET;
     seraddr.sin_port = htons( 9876 );
-    seraddr.sin_addr.s_addr = inet_addr( "172.20.36.93" );
+    seraddr.sin_addr.s_addr = inet_addr( "127.0.0.1" );
     if ( 0 > connect( sockfd, (struct sockaddr*)&seraddr, sizeof(seraddr) ) )
     {
         printf("connect error:%s\n", strerror(errno) );
         exit(-2);
-    }
+    }else{
+		printf("connect ok\n");
+	}
 
     char wbuf[64] = {0};
     strcpy( wbuf, "hello world");

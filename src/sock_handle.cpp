@@ -27,11 +27,13 @@ Handle SockHandle::get_handle() const
 
 void SockHandle::handle_read()
 {
+	printf("on read\n");
     if ( 0 < read( sock_fd, buf, MAX_SIZE ) )
     {
         write( sock_fd, buf, strlen(buf) );
-    }
-    handle_error();
+    }else{
+		handle_error();
+	}
 }
 
 void SockHandle::handle_write()
@@ -43,5 +45,6 @@ void SockHandle::handle_error()
 {
     Reactor& r = Reactor::get_instance();
     r.remove( this );
+	delete this;
 }
 

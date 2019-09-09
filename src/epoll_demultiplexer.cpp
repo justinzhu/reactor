@@ -12,85 +12,75 @@
 #include "event_demultiplexer.h"
 #include "epoll_demultiplexer.h"
 
+const int EpollDemultiplexer::max_event = 1024;
 EpollDemultiplexer::EpollDemultiplexer()
-:max_fd(0)
+:epoll_fd(-1)
 {
-    epoll_fd = epoll_create( 1024 );
+    epoll_fd = epoll_create( max_event );
+	evs.resize( max_event );
 }
 
 EpollDemultiplexer::~EpollDemultiplexer()
 {
-    close( epoll_fd );
+	if( epoll_fd != -1 )
+		close( epoll_fd );
 }
 
 int EpollDemultiplexer::wait_event(  std::map<Handle, EventHandler *>&  handlers,
                                 int timeout )
 {
-    std::vector<struct epoll_event> evs(max_fd); 
 
-    int num = epoll_wait( epoll_fd, &evs[0], max_fd, timeout );
+    int num = epoll_wait( epoll_fd, &evs[0], max_event, timeout );
 
-    if ( num > 0 )
-    {
-        for ( int i = 0; i < num; ++i )
-        {
-            Handle handle =  evs[i].data.fd ;
+	for ( int i = 0; i < num; ++i )
+	{
+		EventHandler* handler = (EventHandler*)evs[i].data.ptr;
 
-            if ( (POLLERR | POLLNVAL) & evs[i].events )
-            {
-                (handlers[ handle ])->handle_error();
-            }
-            else
-            {
-                if ( (POLLIN | POLLPRI | POLLRDHUP) & evs[i].events )
-                {
-                    handlers[ handle ]->handle_read();
-                }
-                if ( EPOLLOUT & evs[i].events )
-                {
-                    handlers[ handle ]->handle_write();
-                }
-            }
-        }
-    }
-    else if ( num < 0 )
-    {
-        printf("epoll_wait error %s\n", strerror(errno) ); 
-    }
+		if ( (EPOLLIN) & evs[i].events )
+		{
+				handler->handle_read();
+		}
+
+		if ( EPOLLOUT & evs[i].events )
+		{
+				handler->handle_write();
+		}
+		if ( (EPOLLRDHUP | EPOLLHUP | EPOLLERR) & evs[i].events )
+		{
+			handler->handle_error();
+		}
+	}
 
     return num;
 }
 
-int EpollDemultiplexer::regist(Handle handle, Event evt)
+int EpollDemultiplexer::regist(EventHandler* handler, Event evt)
 {
     struct epoll_event ev;
 
-    ev.data.fd = handle;
+	ev.data.ptr = (void*)handler;
 
     if ( evt & ReadEvent )
     {
         ev.events |= EPOLLIN;
+		ev.events |= EPOLLET;
     }
     if ( evt & WriteEvent )
     {
         ev.events |= EPOLLOUT;    
     }
-    ev.events |= EPOLLET;
 
-    if ( 0 != epoll_ctl( epoll_fd, EPOLL_CTL_ADD, handle, &ev ) )
+    if ( 0 != epoll_ctl( epoll_fd, EPOLL_CTL_ADD, handler->get_handle(), &ev ) )
     {
         if ( errno == ENOENT ) 
         {
-            if ( 0 != epoll_ctl( epoll_fd, EPOLL_CTL_ADD, handle, &ev ) )
+            if ( 0 != epoll_ctl( epoll_fd, EPOLL_CTL_ADD, handler->get_handle(), &ev ) )
             {
                 printf("epoll_ctrl add error : %s\n", strerror(errno));
                 return -errno;
             }
-            ++max_fd;
         }
     }
-    else
-        ++max_fd;
 
     return 0;
 }
@@ -105,7 +95,6 @@ int EpollDemultiplexer::remove(Handle handle)
         return -errno;
     }
 
-    --max_fd;
     return 0;
 }
 
